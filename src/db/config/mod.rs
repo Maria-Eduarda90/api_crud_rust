@@ -8,4 +8,15 @@ pub async fn start_connection() -> Pool<Postgres> {
         .connect(&postgres_environment)
         .await
         .expect("Failed to connect to Postgres");
+
+    let check_migrate = sqlx::migrate!("./src/db/migrations")
+        .run(&pool)
+        .await;
+
+    match check_migrate {
+        Ok(_) => println!("Migrations ran successfully"),
+        Err(err) => println!("Error running migrations: {:?}", err),
+    };
+
+    return pool;
 }
