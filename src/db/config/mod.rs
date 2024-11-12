@@ -9,9 +9,7 @@ pub async fn start_connection() -> Pool<Postgres> {
         .await
         .expect("Failed to connect to Postgres");
 
-    let check_migrate = sqlx::migrate!("./src/db/migrations")
-        .run(&pool)
-        .await;
+    let check_migrate = sqlx::migrate!("./src/db/migrations").run(&pool).await;
 
     match check_migrate {
         Ok(_) => println!("Migrations ran successfully"),
