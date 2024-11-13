@@ -18,7 +18,6 @@ async fn get_all_users(app_state: web::Data<AppState>) -> impl Responder {
                         id: user.id,
                         name: user.name.clone(),
                         email: user.email.clone(),
-                        password: user.password.clone(),
                     })
                     .collect::<Vec<AllUser>>()
             )
@@ -59,8 +58,7 @@ async fn create_user(app_state: web::Data<AppState>, user: web::Json<RegisterUse
         Ok(user) => HttpResponse::Ok().json(AllUser {
             id: user.id,
             name: user.name,
-            email: user.email,
-            password: user.password,
+            email: user.email
         }),
         Err(_) => HttpResponse::InternalServerError().body("Error trying to create user.")
     }
@@ -80,16 +78,14 @@ async fn update_user(app_state: web::Data<AppState>, user: web::Json<UpdateUser>
         user.email,
         hasded,
         id.into_inner()
-    ).fetch_one(&app_state.postgres_client).await;
+    )
+    .fetch_optional(&app_state.postgres_client)
+    .await;
 
     match result {
-        Ok(user) => HttpResponse::Ok().json(AllUser {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            password: user.password,
-        }),
-        Err(_) => HttpResponse::InternalServerError().body("Error trying to create user.")
+        Ok(Some(_user)) => HttpResponse::Ok().body("Usuário atualizado com sucesso"),
+        Ok(None) => HttpResponse::NotFound().body("Usuário não encontrado"),
+        Err(_) => HttpResponse::InternalServerError().body("Erro ao tentar atualizar o usuário"),
     }
 
 }
@@ -102,12 +98,8 @@ async fn delete_user(app_state: web::Data<AppState>, id: web::Path<i32>) -> impl
     ).fetch_optional(&app_state.postgres_client).await;
 
     match result {
-        Ok(Some(_user)) => {
-            HttpResponse::Ok().body("Usuario excluido com sucesso")
-        },
-        Ok(None) => {
-            HttpResponse::NotFound().body("Usuario não encontrado")
-        }
+        Ok(Some(_user)) => HttpResponse::Ok().body("Usuario excluido com sucesso"),
+        Ok(None) => HttpResponse::NotFound().body("Usuario não encontrado"),
         Err(_) => HttpResponse::InternalServerError().body("Erro ao tentar excluir o usuario")
     }
 
