@@ -1,6 +1,6 @@
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use dotenv::dotenv;
-use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
+use sqlx::{Pool, Postgres};
 
 mod db {
     pub mod config;

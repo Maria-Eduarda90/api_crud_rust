@@ -1,8 +1,7 @@
 use actix_web::{get, post, put, delete, web, HttpResponse, Responder};
 use super::models::{AllUser, RegisterUser, UpdateUser};
 use crate::AppState;
-use bcrypt::{DEFAULT_COST, hash, verify};
-use sqlx::{Pool, Postgres};
+use bcrypt::{DEFAULT_COST, hash};
 
 #[get("/users")]
 async fn get_all_users(app_state: web::Data<AppState>) -> impl Responder {
@@ -68,7 +67,7 @@ async fn create_user(app_state: web::Data<AppState>, user: web::Json<RegisterUse
 }
 
 #[put("/users/{id}")]
-async fn update_user(app_state: web::Data<AppState>, user: web::Json<RegisterUser>, id: web::Path<i32>) -> impl Responder {
+async fn update_user(app_state: web::Data<AppState>, user: web::Json<UpdateUser>, id: web::Path<i32>) -> impl Responder {
     let hasded = hash(&user.password, DEFAULT_COST).expect("Failed to hash password");
 
     if !(hasded != user.password){
@@ -83,7 +82,7 @@ async fn update_user(app_state: web::Data<AppState>, user: web::Json<RegisterUse
         id.into_inner()
     ).fetch_one(&app_state.postgres_client).await;
 
-     match result {
+    match result {
         Ok(user) => HttpResponse::Ok().json(AllUser {
             id: user.id,
             name: user.name,
@@ -95,8 +94,28 @@ async fn update_user(app_state: web::Data<AppState>, user: web::Json<RegisterUse
 
 }
 
+#[delete("/users/{id}")]
+async fn delete_user(app_state: web::Data<AppState>, id: web::Path<i32>) -> impl Responder {
+    let result = sqlx::query!(
+        "DELETE FROM users WHERE id = $1 RETURNING id, name, email, password",
+        id.into_inner()
+    ).fetch_optional(&app_state.postgres_client).await;
+
+    match result {
+        Ok(Some(_user)) => {
+            HttpResponse::Ok().body("Usuario excluido com sucesso")
+        },
+        Ok(None) => {
+            HttpResponse::NotFound().body("Usuario não encontrado")
+        }
+        Err(_) => HttpResponse::InternalServerError().body("Erro ao tentar excluir o usuario")
+    }
+
+}
+
 pub fn users_routes(cfg: &mut web::ServiceConfig){
     cfg.service(get_all_users);
     cfg.service(create_user);
     cfg.service(update_user);
+    cfg.service(delete_user);
 }
