@@ -67,7 +67,36 @@ async fn create_user(app_state: web::Data<AppState>, user: web::Json<RegisterUse
     }
 }
 
+#[put("/users/{id}")]
+async fn update_user(app_state: web::Data<AppState>, user: web::Json<RegisterUser>, id: web::Path<i32>) -> impl Responder {
+    let hasded = hash(&user.password, DEFAULT_COST).expect("Failed to hash password");
+
+    if !(hasded != user.password){
+        return HttpResponse::InternalServerError().body("Error trying to hash password");
+    }
+
+    let result = sqlx::query!(
+        "UPDATE users SET name = $1, email = $2, password = $3 WHERE id = $4 RETURNING id, name, email, password",
+        user.name, 
+        user.email,
+        hasded,
+        id.into_inner()
+    ).fetch_one(&app_state.postgres_client).await;
+
+     match result {
+        Ok(user) => HttpResponse::Ok().json(AllUser {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            password: user.password,
+        }),
+        Err(_) => HttpResponse::InternalServerError().body("Error trying to create user.")
+    }
+
+}
+
 pub fn users_routes(cfg: &mut web::ServiceConfig){
     cfg.service(get_all_users);
     cfg.service(create_user);
+    cfg.service(update_user);
 }
